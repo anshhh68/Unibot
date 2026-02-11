@@ -136,4 +136,24 @@ DATABASES = {
 
 ---
 
+
+## 🚀 Deployment (Vercel)
+
+This project is a monorepo with separate `frontend` and `backend` directories.
+
+**Frontend Deployment:**
+1.  Connect your GitHub repository to Vercel.
+2.  Import the project.
+3.  In the configuration step:
+    *   **Root Directory**: Click "Edit" and select: **`frontend`**
+4.  **Environment Variables:**
+    *   Add `NEXT_PUBLIC_API_URL` pointing to your deployed backend (e.g., `https://your-backend.onrender.com/api`).
+5.  Click **Deploy**.
+
+**Backend Deployment:**
+Deploy the `backend` folder to a Python host like Render, Railway, or Heroku. Ensure you execute migrations and set `DATABASE_URL`.
+
+---
+
 *Built with ❤️ using the Antigravity Boilerplate*
+
