@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Antennas -->
+  <line x1="40" y1="20" x2="30" y2="10" stroke="#CBD5E1" stroke-width="3" stroke-linecap="round" />
+  <circle cx="30" cy="10" r="4" fill="#64748B" />
+  
+  <line x1="80" y1="20" x2="90" y2="10" stroke="#CBD5E1" stroke-width="3" stroke-linecap="round" />
+  <circle cx="90" cy="10" r="4" fill="#64748B" />
+
+  <!-- Orange Ears -->
+  <circle cx="15" cy="60" r="12" fill="#FDBA74" stroke="#F97316" stroke-width="2" /> <!-- Left Ear -->
+  <circle cx="105" cy="60" r="12" fill="#FDBA74" stroke="#F97316" stroke-width="2" /> <!-- Right Ear -->
+
+  <!-- Head/Body -->
+  <rect x="20" y="20" width="80" height="80" rx="30" fill="white" stroke="#E2E8F0" stroke-width="2" />
+  
+  <!-- Visor Screen -->
+  <rect x="30" y="35" width="60" height="35" rx="12" fill="#0F172A" />
+  
+  <!-- One Big Blue Eye -->
+  <circle cx="60" cy="52" r="10" fill="#3B82F6" />
+  <circle cx="60" cy="52" r="5" fill="#93C5FD" opacity="0.6" />
+  <circle cx="64" cy="48" r="3" fill="white" opacity="0.9" />
+  
+  <!-- Chest Logo Text -->
+  <text x="60" y="90" font-family="Arial, sans-serif" font-weight="900" font-size="12" fill="#334155" text-anchor="middle" letter-spacing="1">UNIBOT</text>
+</svg>
