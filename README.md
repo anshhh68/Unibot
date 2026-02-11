@@ -139,19 +139,21 @@ DATABASES = {
 
 ## 🚀 Deployment (Vercel)
 
-This project is a monorepo with separate `frontend` and `backend` directories.
+This project is configured to deploy both Frontend and Backend on Vercel with a single URL.
 
-**Frontend Deployment:**
 1.  Connect your GitHub repository to Vercel.
 2.  Import the project.
-3.  In the configuration step:
-    *   **Root Directory**: Click "Edit" and select: **`frontend`**
+3.  Ensure **Root Directory** is empty (default).
 4.  **Environment Variables:**
-    *   Add `NEXT_PUBLIC_API_URL` pointing to your deployed backend (e.g., `https://your-backend.onrender.com/api`).
+    *   `SECRET_KEY`: Random string for Django security.
+    *   `DEBUG`: `False` (for production).
+    *   `DATABASE_URL`: (Optional) Connection string for a PostgreSQL database (e.g., Neon, Supabase, Vercel Postgres).
+        *   *Note: Without this, the app uses ephemeral SQLite which resets on every deployment.*
 5.  Click **Deploy**.
 
-**Backend Deployment:**
-Deploy the `backend` folder to a Python host like Render, Railway, or Heroku. Ensure you execute migrations and set `DATABASE_URL`.
+The app will be available at your Vercel URL (e.g., `https://unibot.vercel.app`).
+*   Frontend: `/`
+*   Backend API: `/api/`
 
 ---
 
