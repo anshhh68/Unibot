@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth";
+import { getDemoUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const user = await getAuthUser(req);
+  const user = await getDemoUser(req);
   if (!user) {
-    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+    return NextResponse.json({ error: "Invalid role." }, { status: 400 });
   }
 
   const { id } = await params;
