@@ -3,7 +3,9 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 import { register } from '@/lib/api';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function RegisterPage() {
     const [form, setForm] = useState({
@@ -12,6 +14,7 @@ export default function RegisterPage() {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const auth = useAuth();
     const router = useRouter();
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -29,6 +32,20 @@ export default function RegisterPage() {
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Registration failed');
         } finally { setLoading(false); }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse: any) => {
+        if (!credentialResponse.credential) return;
+        setError('');
+        setLoading(true);
+        try {
+            await auth.googleLogin(credentialResponse.credential);
+            router.push('/dashboard');
+        } catch {
+            setError('Google Sign-In failed.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -116,6 +133,23 @@ export default function RegisterPage() {
                         {loading ? 'Creating...' : '🚀 Create Account'}
                     </button>
                 </form>
+
+                {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && !process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID.startsWith('your-') && (
+                    <>
+                        <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', gap: 12 }}>
+                            <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>OR</span>
+                            <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                            <GoogleLogin
+                                onSuccess={handleGoogleSuccess}
+                                onError={() => setError('Google initialization failed.')}
+                            />
+                        </div>
+                    </>
+                )}
 
                 <div style={{ textAlign: 'center', marginTop: 20, fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
                     Already have an account? <Link href="/login" style={{ fontWeight: 600 }}>Sign in</Link>

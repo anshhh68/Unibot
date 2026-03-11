@@ -68,37 +68,40 @@ def build_context(user):
 
 def get_ai_response(user_message: str, user) -> str:
     """
-    Sends the student's message to OpenAI along with course context.
+    Sends the student's message to Google Gemini along with course context.
     Returns the AI-generated response text.
     """
     try:
-        from openai import OpenAI
+        import google.generativeai as genai
 
-        api_key = settings.OPENAI_API_KEY
+        api_key = getattr(settings, 'GEMINI_API_KEY', None) or settings.OPENAI_API_KEY
         if not api_key or api_key == 'your-openai-api-key-here':
             # Fallback for demo/development without API key
             return _demo_response(user_message, user)
 
-        client = OpenAI(api_key=api_key)
+        genai.configure(api_key=api_key)
         context = build_context(user)
-
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "system", "content": f"Course Context:\n{context}"},
-            {"role": "user", "content": user_message},
-        ]
-
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            max_tokens=800,
-            temperature=0.7,
+        
+        # We merge system prompt and context into a single instructional prompt
+        instruction = f"{SYSTEM_PROMPT}\n\nCourse Context:\n{context}"
+        
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            system_instruction=instruction
         )
 
-        return response.choices[0].message.content.strip()
+        response = model.generate_content(
+            user_message,
+            generation_config=genai.GenerationConfig(
+                temperature=0.7,
+                max_output_tokens=800,
+            )
+        )
+
+        return response.text.strip()
 
     except Exception as e:
-        logger.error(f"OpenAI API error: {e}")
+        logger.error(f"Gemini API error: {e}")
         return _demo_response(user_message, user)
 
 

@@ -117,5 +117,8 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-# OpenAI
+# OpenAI (legacy)
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+
+# Google Gemini
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
