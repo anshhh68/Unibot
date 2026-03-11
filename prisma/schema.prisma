@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  username   String   @unique
+  email      String   @unique
+  password   String
+  firstName  String   @map("first_name")
+  lastName   String   @map("last_name")
+  role       String   @default("student") // student | faculty | admin
+  phone      String?
+  department String?
+  avatarUrl  String?  @map("avatar_url")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  coursesTaught Course[]     @relation("FacultyCourses")
+  enrollments  Enrollment[]
+  assignments  Assignment[] @relation("FacultyAssignments")
+  feedbacks    Feedback[]
+  queries      Query[]
+
+  @@map("users")
+}
+
+model Course {
+  id          Int      @id @default(autoincrement())
+  name        String
+  code        String   @unique
+  syllabus    String   @default("")
+  description String   @default("")
+  department  String   @default("")
+  facultyId   Int?     @map("faculty_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  faculty     User?        @relation("FacultyCourses", fields: [facultyId], references: [id], onDelete: SetNull)
+  enrollments Enrollment[]
+  assignments Assignment[]
+
+  @@map("courses")
+}
+
+model Enrollment {
+  id            Int      @id @default(autoincrement())
+  studentId     Int      @map("student_id")
+  courseId       Int      @map("course_id")
+  enrollmentNum String   @unique @map("enrollment_num")
+  enrolledAt    DateTime @default(now()) @map("enrolled_at")
+
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@map("enrollments")
+}
+
+model Assignment {
+  id        Int       @id @default(autoincrement())
+  courseId   Int       @map("course_id")
+  facultyId  Int       @map("faculty_id")
+  title     String
+  content   String
+  dueDate   DateTime? @map("due_date")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  faculty User   @relation("FacultyAssignments", fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@map("assignments")
+}
+
+model Feedback {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  comment   String
+  rating    Int      @default(5)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("feedback")
+}
+
+model Query {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  content   String
+  timestamp DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  response Response?
+
+  @@map("queries")
+}
+
+model Response {
+  id           Int      @id @default(autoincrement())
+  queryId      Int      @unique @map("query_id")
+  responseText String   @map("response_text")
+  timestamp    DateTime @default(now())
+
+  query Query @relation(fields: [queryId], references: [id], onDelete: Cascade)
+
+  @@map("responses")
+}
