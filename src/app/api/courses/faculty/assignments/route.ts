@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth";
+import { getDemoUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
-  const user = await getAuthUser(req);
+  const user = await getDemoUser(req);
   if (!user || user.role !== "faculty") {
-    return NextResponse.json({ error: "Faculty access required." }, { status: 403 });
+    return NextResponse.json({ error: "Faculty role required." }, { status: 403 });
   }
 
   const assignments = await prisma.assignment.findMany({
@@ -30,9 +30,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await getAuthUser(req);
+  const user = await getDemoUser(req);
   if (!user || user.role !== "faculty") {
-    return NextResponse.json({ error: "Faculty access required." }, { status: 403 });
+    return NextResponse.json({ error: "Faculty role required." }, { status: 403 });
   }
 
   const { course, title, content, due_date } = await req.json();

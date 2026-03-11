@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser } from "@/lib/auth";
+import { getDemoUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
-  const user = await getAuthUser(req);
+  const user = await getDemoUser(req);
   if (!user || user.role !== "student") {
-    return NextResponse.json({ error: "Student access required." }, { status: 403 });
+    return NextResponse.json({ error: "Student role required." }, { status: 403 });
   }
 
   const enrollments = await prisma.enrollment.findMany({

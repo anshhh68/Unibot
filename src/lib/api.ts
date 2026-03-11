@@ -1,32 +1,17 @@
-/**
- * UNIBOT API Client — handles all backend communication.
+﻿/**
+ * UNIBOT API Client — role-based, no authentication required.
  */
 
 const API_BASE = '/api';
 
-interface TokenPair {
-    access: string;
-    refresh: string;
+export function getRole(): 'student' | 'faculty' {
+    if (typeof window === 'undefined') return 'student';
+    const r = localStorage.getItem('unibot_role');
+    return (r === 'student' || r === 'faculty') ? r : 'student';
 }
 
-// ─── Token Management ────────────────────────────────────────
-
-export function getTokens(): TokenPair | null {
-    if (typeof window === 'undefined') return null;
-    const access = localStorage.getItem('unibot_access');
-    const refresh = localStorage.getItem('unibot_refresh');
-    if (access && refresh) return { access, refresh };
-    return null;
-}
-
-export function setTokens(tokens: TokenPair) {
-    localStorage.setItem('unibot_access', tokens.access);
-    localStorage.setItem('unibot_refresh', tokens.refresh);
-}
-
-export function clearTokens() {
-    localStorage.removeItem('unibot_access');
-    localStorage.removeItem('unibot_refresh');
+export function setRole(role: 'student' | 'faculty') {
+    localStorage.setItem('unibot_role', role);
 }
 
 // ─── Fetch Wrapper ───────────────────────────────────────────
@@ -35,88 +20,12 @@ async function apiFetch(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<Response> {
-    const tokens = getTokens();
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
+        'x-demo-role': getRole(),
         ...(options.headers as Record<string, string>),
     };
-
-    if (tokens?.access) {
-        headers['Authorization'] = `Bearer ${tokens.access}`;
-    }
-
-    const res = await fetch(`${API_BASE}${endpoint}`, {
-        ...options,
-        headers,
-    });
-
-    // Auto-refresh on 401
-    if (res.status === 401 && tokens?.refresh) {
-        try {
-            const refreshRes = await fetch(`${API_BASE}/auth/token/refresh`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refresh: tokens.refresh }),
-            });
-            if (refreshRes.ok) {
-                const data = await refreshRes.json();
-                setTokens({ access: data.access, refresh: tokens.refresh });
-                headers['Authorization'] = `Bearer ${data.access}`;
-                return fetch(`${API_BASE}${endpoint}`, { ...options, headers });
-            }
-        } catch {
-            clearTokens();
-        }
-    }
-
-    return res;
-}
-
-// ─── Auth API ────────────────────────────────────────────────
-
-export async function login(username: string, password: string) {
-    const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-    });
-    if (!res.ok) throw new Error('Invalid credentials');
-    const data = await res.json();
-    setTokens({ access: data.access, refresh: data.refresh });
-    return data;
-}
-
-
-export async function register(userData: {
-    username: string;
-    email: string;
-    password: string;
-    password_confirm: string;
-    first_name: string;
-    last_name: string;
-    role: string;
-    department?: string;
-}) {
-    const res = await fetch(`${API_BASE}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userData),
-    });
-    if (!res.ok) {
-        const err = await res.json();
-        throw new Error(JSON.stringify(err));
-    }
-    return res.json();
-}
-
-export async function getProfile() {
-    const res = await apiFetch('/auth/profile');
-    if (!res.ok) throw new Error('Failed to fetch profile');
-    return res.json();
-}
-
-export function logout() {
-    clearTokens();
+    return fetch(`${API_BASE}${endpoint}`, { ...options, headers });
 }
 
 // ─── Chat API ────────────────────────────────────────────────
@@ -184,8 +93,6 @@ export async function createAssignment(data: {
     if (!res.ok) throw new Error('Failed to create assignment');
     return res.json();
 }
-
-// ─── Feedback API ────────────────────────────────────────────
 
 export async function submitFeedback(comment: string, rating: number) {
     const res = await apiFetch('/courses/feedback', {

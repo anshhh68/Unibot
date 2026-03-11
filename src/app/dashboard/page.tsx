@@ -3,10 +3,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import ReactMarkdown from 'react-markdown';
-import { useAuth } from '@/lib/auth-context';
 import {
     sendMessage, getChatHistory, getCourses, getEnrollments,
     updateSyllabus, getAssignments, createAssignment, submitFeedback,
+    getRole, setRole,
 } from '@/lib/api';
 
 /* ── Types ──────────────────────────────────────────────────── */
@@ -26,6 +26,19 @@ interface AssignmentData {
 interface EnrollmentData {
     id: number; course_detail: CourseData; enrollment_num: string;
 }
+
+interface DemoUser {
+    first_name: string;
+    last_name: string;
+    username: string;
+    role: 'student' | 'faculty';
+    department: string;
+}
+
+const DEMO_USERS: Record<'student' | 'faculty', DemoUser> = {
+    student: { first_name: 'Alex', last_name: 'Johnson', username: 'student1', role: 'student', department: 'Computer Science' },
+    faculty: { first_name: 'Raj', last_name: 'Sharma', username: 'prof_sharma', role: 'faculty', department: 'Computer Science' },
+};
 
 const COURSE_COLORS = [
     { bg: '#EFF6FF', color: '#3B82F6', icon: '✏️' },
@@ -58,20 +71,29 @@ function formatDateOrdinal() {
    MAIN DASHBOARD
    ═══════════════════════════════════════════════════════════════ */
 export default function DashboardPage() {
-    const { user, loading, logout } = useAuth();
     const router = useRouter();
+    const [role, setRoleState] = useState<'student' | 'faculty'>('student');
+    const [mounted, setMounted] = useState(false);
     const [activeTab, setActiveTab] = useState('dashboard');
 
     useEffect(() => {
-        if (!loading && !user) router.push('/login');
-    }, [user, loading, router]);
+        setRoleState(getRole());
+        setMounted(true);
+    }, []);
 
-    if (loading) return <LoadingScreen />;
-    if (!user) return null;
+    if (!mounted) return <LoadingScreen />;
 
-    const isStudent = user.role === 'student';
-    const displayName = user.first_name || user.username;
-    const initials = `${(user.first_name?.[0] || '').toUpperCase()}${(user.last_name?.[0] || '').toUpperCase()}` || 'U';
+    const user = DEMO_USERS[role];
+    const isStudent = role === 'student';
+    const displayName = user.first_name;
+    const initials = `${user.first_name[0]}${user.last_name[0]}`;
+
+    const switchRole = () => {
+        const next = role === 'student' ? 'faculty' : 'student';
+        setRole(next);
+        setRoleState(next);
+        setActiveTab('dashboard');
+    };
 
     const studentTabs = [
         { id: 'dashboard', icon: '🏠', label: 'Dashboard' },
@@ -127,8 +149,12 @@ export default function DashboardPage() {
                             <span className="sidebar-icon">⚙️</span><span>Settings</span>
                         </button>
                     )}
-                    <button className="sidebar-link" onClick={() => { logout(); router.push('/'); }}>
-                        <span className="sidebar-icon">↩️</span><span>Sign Out</span>
+                    <button className="sidebar-link" onClick={switchRole}>
+                        <span className="sidebar-icon">{isStudent ? '👨‍🏫' : '🎓'}</span>
+                        <span>Switch to {isStudent ? 'Professor' : 'Student'}</span>
+                    </button>
+                    <button className="sidebar-link" onClick={() => router.push('/')}>
+                        <span className="sidebar-icon">🏠</span><span>Home</span>
                     </button>
                 </div>
             </aside>
@@ -146,6 +172,20 @@ export default function DashboardPage() {
                                 <input type="text" className="topbar-search" placeholder="Search for students, files..." />
                             </div>
                         )}
+                        {/* Role toggle pill */}
+                        <button
+                            onClick={switchRole}
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: 6,
+                                padding: '6px 14px', borderRadius: 9999,
+                                border: '1.5px solid var(--border)',
+                                background: 'white', cursor: 'pointer',
+                                fontSize: '0.78rem', fontWeight: 700,
+                                color: 'var(--text-secondary)',
+                            }}
+                        >
+                            {isStudent ? '👨‍🏫' : '🎓'} Switch to {isStudent ? 'Professor' : 'Student'}
+                        </button>
                         <div className="topbar-bell">
                             🔔
                             <div className="topbar-bell-dot" />
