@@ -86,17 +86,6 @@ export async function login(username: string, password: string) {
     return data;
 }
 
-export async function googleLogin(credential: string) {
-    const res = await fetch(`${API_BASE}/auth/google/`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential }),
-    });
-    if (!res.ok) throw new Error('Google Sign-In failed');
-    const data = await res.json();
-    setTokens({ access: data.access, refresh: data.refresh });
-    return data;
-}
 
 export async function register(userData: {
     username: string;

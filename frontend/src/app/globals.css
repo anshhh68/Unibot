@@ -922,6 +922,64 @@ select.input-field {
   line-height: 1.6;
 }
 
+/* ── Markdown inside bot bubbles ──────────────────────── */
+.msg-bot-bubble.markdown-body p {
+  margin: 0 0 8px 0;
+}
+
+.msg-bot-bubble.markdown-body p:last-child {
+  margin-bottom: 0;
+}
+
+.msg-bot-bubble.markdown-body strong {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.msg-bot-bubble.markdown-body em {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.msg-bot-bubble.markdown-body ul,
+.msg-bot-bubble.markdown-body ol {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+
+.msg-bot-bubble.markdown-body li {
+  margin-bottom: 4px;
+}
+
+.msg-bot-bubble.markdown-body h1,
+.msg-bot-bubble.markdown-body h2,
+.msg-bot-bubble.markdown-body h3 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 10px 0 6px 0;
+  color: var(--text-primary);
+}
+
+.msg-bot-bubble.markdown-body h1:first-child,
+.msg-bot-bubble.markdown-body h2:first-child,
+.msg-bot-bubble.markdown-body h3:first-child {
+  margin-top: 0;
+}
+
+.msg-bot-bubble.markdown-body code {
+  background: rgba(0, 0, 0, 0.06);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-family: 'Fira Code', monospace;
+}
+
+.msg-bot-bubble.markdown-body hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 10px 0;
+}
+
 .msg-row-user {
   display: flex;
   gap: 10px;

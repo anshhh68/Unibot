@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import ReactMarkdown from 'react-markdown';
 import { useAuth } from '@/lib/auth-context';
 import {
     sendMessage, getChatHistory, getCourses, getEnrollments,
@@ -542,8 +543,8 @@ function ChatWidget({ user }: { user: { first_name: string; username: string } }
                         {m.response ? (
                             <div className="msg-row-bot">
                                 <img src="/logo.svg" alt="Bot" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'contain', background: '#F1F5F9' }} />
-                                <div className="msg-bot-bubble" style={{ whiteSpace: 'pre-wrap' }}>
-                                    {m.response.response_text}
+                                <div className="msg-bot-bubble markdown-body">
+                                    <ReactMarkdown>{m.response.response_text}</ReactMarkdown>
                                 </div>
                             </div>
                         ) : sending && (

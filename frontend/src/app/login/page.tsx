@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
-import { GoogleLogin } from '@react-oauth/google';
 
 export default function LoginPage() {
     const [username, setUsername] = useState('');
@@ -23,20 +22,6 @@ export default function LoginPage() {
             router.push('/dashboard');
         } catch {
             setError('Invalid username or password.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleGoogleSuccess = async (credentialResponse: any) => {
-        if (!credentialResponse.credential) return;
-        setError('');
-        setLoading(true);
-        try {
-            await auth.googleLogin(credentialResponse.credential);
-            router.push('/dashboard');
-        } catch {
-            setError('Google Sign-In failed.');
         } finally {
             setLoading(false);
         }
@@ -98,23 +83,6 @@ export default function LoginPage() {
                         {loading ? 'Signing in...' : '🚀 Sign In'}
                     </button>
                 </form>
-
-                {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID && !process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID.startsWith('your-') && (
-                    <>
-                        <div style={{ display: 'flex', alignItems: 'center', margin: '24px 0', gap: 12 }}>
-                            <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
-                            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>OR</span>
-                            <div style={{ flex: 1, height: 1, background: 'var(--border-light)' }} />
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'center' }}>
-                            <GoogleLogin
-                                onSuccess={handleGoogleSuccess}
-                                onError={() => setError('Google initialization failed.')}
-                            />
-                        </div>
-                    </>
-                )}
 
                 <div style={{ textAlign: 'center', marginTop: 20, fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
                     Don&apos;t have an account? <Link href="/register" style={{ fontWeight: 600 }}>Create one</Link>
