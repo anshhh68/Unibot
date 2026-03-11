@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { flushSync } from 'react-dom';
 import { getProfile, login as apiLogin, logout as apiLogout, getTokens } from './api';
 
 
@@ -49,8 +50,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [refreshUser]);
 
     const login = async (username: string, password: string) => {
-        await apiLogin(username, password);
-        await refreshUser();
+        const data = await apiLogin(username, password);
+        // Use flushSync so React commits the state update synchronously
+        // before the caller does router.push — prevents dashboard redirecting
+        // back to login because it sees user=null on first render.
+        flushSync(() => {
+            setUser(data.user);
+        });
     };
 
 
