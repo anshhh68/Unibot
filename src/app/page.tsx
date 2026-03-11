@@ -2,13 +2,33 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 
 export default function LandingPage() {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
+  const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [demoLoading, setDemoLoading] = useState<'student' | 'professor' | null>(null);
+  const [demoError, setDemoError] = useState('');
   useEffect(() => { setMounted(true); }, []);
   if (!mounted) return null;
+
+  const handleDemoLogin = async (role: 'student' | 'professor') => {
+    setDemoError('');
+    setDemoLoading(role);
+    try {
+      const creds = role === 'student'
+        ? { username: 'student1', password: 'student123' }
+        : { username: 'prof_sharma', password: 'faculty123' };
+      await login(creds.username, creds.password);
+      router.push('/dashboard');
+    } catch {
+      setDemoError('Demo login failed. Please try again.');
+    } finally {
+      setDemoLoading(null);
+    }
+  };
 
   return (
     <div style={{ background: 'white', minHeight: '100vh' }}>
@@ -82,6 +102,50 @@ export default function LandingPage() {
             <Link href={user ? '/dashboard' : '/register'} className="btn btn-primary btn-lg">🚀 Start Chatting</Link>
             <a href="#features" className="btn btn-outline btn-lg">Learn More</a>
           </div>
+
+          {/* Demo Quick-Access */}
+          {!user && (
+            <div className="animate-fade-in-up" style={{ animationDelay: '0.4s', marginTop: 28 }}>
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: 10, fontWeight: 600, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                🔑 Try a demo account
+              </p>
+              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <button
+                  onClick={() => handleDemoLogin('student')}
+                  disabled={demoLoading !== null}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '9px 20px',
+                    borderRadius: 9999, border: '1.5px solid var(--border)',
+                    background: 'white', cursor: demoLoading ? 'wait' : 'pointer',
+                    fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', transition: 'all 0.15s',
+                    opacity: demoLoading === 'professor' ? 0.5 : 1,
+                  }}
+                >
+                  <span style={{ fontSize: '1rem' }}>🎓</span>
+                  {demoLoading === 'student' ? 'Signing in...' : 'Student Demo'}
+                </button>
+                <button
+                  onClick={() => handleDemoLogin('professor')}
+                  disabled={demoLoading !== null}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '9px 20px',
+                    borderRadius: 9999, border: '1.5px solid var(--border)',
+                    background: 'white', cursor: demoLoading ? 'wait' : 'pointer',
+                    fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.06)', transition: 'all 0.15s',
+                    opacity: demoLoading === 'student' ? 0.5 : 1,
+                  }}
+                >
+                  <span style={{ fontSize: '1rem' }}>👨‍🏫</span>
+                  {demoLoading === 'professor' ? 'Signing in...' : 'Professor Demo'}
+                </button>
+              </div>
+              {demoError && (
+                <p style={{ marginTop: 10, fontSize: '0.82rem', color: 'var(--red)' }}>{demoError}</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Chat Preview */}
