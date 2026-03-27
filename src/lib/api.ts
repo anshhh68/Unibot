@@ -1,4 +1,4 @@
-﻿/**
+/**
  * UNIBOT API Client — role-based, no authentication required.
  */
 
@@ -30,10 +30,10 @@ async function apiFetch(
 
 // ─── Chat API ────────────────────────────────────────────────
 
-export async function sendMessage(message: string) {
+export async function sendMessage(message: string, userName?: string) {
     const res = await apiFetch('/chat', {
         method: 'POST',
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({ message, userName, role: getRole() }),
     });
     if (!res.ok) throw new Error('Failed to send message');
     return res.json();

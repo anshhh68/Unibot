@@ -1,4 +1,5 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+dotenv.config({ path: ".env.local" });
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
@@ -12,7 +13,7 @@ async function main() {
   const facultyPassword = await bcrypt.hash("faculty123", 12);
   const studentPassword = await bcrypt.hash("student123", 12);
 
-  const adminUser = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { username: "admin" },
     update: {},
     create: {

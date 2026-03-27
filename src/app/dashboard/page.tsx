@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import {
-    sendMessage, getChatHistory, getCourses, getEnrollments,
-    updateSyllabus, getAssignments, createAssignment, submitFeedback,
+    sendMessage, getCourses, getEnrollments,
+    updateSyllabus, getAssignments,
     getRole, setRole,
 } from '@/lib/api';
 
@@ -77,6 +78,7 @@ export default function DashboardPage() {
     const [activeTab, setActiveTab] = useState('dashboard');
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setRoleState(getRole());
         setMounted(true);
     }, []);
@@ -117,7 +119,7 @@ export default function DashboardPage() {
             {/* ── SIDEBAR ────────────────────────────────── */}
             <aside className="sidebar">
                 <div className="sidebar-brand">
-                    <img src="/logo.svg" alt="Logo" style={{ width: 36, height: 36, objectFit: 'contain' }} />
+                    <Image src="/logo.svg" alt="Logo" width={36} height={36} style={{ objectFit: 'contain' }} />
                     <span className="sidebar-brand-text">UNIBOT</span>
                 </div>
 
@@ -231,7 +233,7 @@ function LoadingScreen() {
             justifyContent: 'center', flexDirection: 'column', gap: 14,
             background: 'var(--bg-page)',
         }}>
-            <img src="/logo.svg" alt="Logo" style={{ width: 64, height: 64, animation: 'pulse 1.5s infinite', objectFit: 'contain' }} />
+            <Image src="/logo.svg" alt="Logo" width={64} height={64} style={{ animation: 'pulse 1.5s infinite', objectFit: 'contain' }} />
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>Loading UNIBOT...</p>
         </div>
     );
@@ -529,9 +531,7 @@ function ChatWidget({ user }: { user: { first_name: string; username: string } }
     const endRef = useRef<HTMLDivElement>(null);
     const scroll = useCallback(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }); }, []);
 
-    useEffect(() => {
-        getChatHistory().then((d) => setMessages(Array.isArray(d) ? d : d.results || [])).catch(console.error);
-    }, []);
+    // Chat history is session-based (no DB required)
     useEffect(() => { scroll(); }, [messages, scroll]);
 
     const handleSend = async () => {
@@ -540,12 +540,14 @@ function ChatWidget({ user }: { user: { first_name: string; username: string } }
         const tmp: ChatMsg = { id: Date.now(), content: text, timestamp: new Date().toISOString() };
         setMessages((p) => [...p, tmp]);
         try {
-            const res = await sendMessage(text);
+            const res = await sendMessage(text, user.first_name);
             setMessages((p) => p.map((m) => m.id === tmp.id
                 ? { ...m, id: res.query_id, response: { response_text: res.response, timestamp: res.timestamp } } : m));
-        } catch {
+        } catch (error) {
+            console.error('Chat error:', error);
+            const errorMsg = '⚠️ Something went wrong. Please try again in a moment.';
             setMessages((p) => p.map((m) => m.id === tmp.id
-                ? { ...m, response: { response_text: '⚠️ Something went wrong. Try again.', timestamp: '' } } : m));
+                ? { ...m, response: { response_text: errorMsg, timestamp: '' } } : m));
         } finally { setSending(false); }
     };
 
@@ -567,7 +569,7 @@ function ChatWidget({ user }: { user: { first_name: string; username: string } }
                 {/* Default bot message */}
                 {messages.length === 0 && !sending && (
                     <div className="msg-row-bot">
-                        <img src="/logo.svg" alt="Bot" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'contain', background: '#F1F5F9' }} />
+                        <Image src="/logo.svg" alt="Bot" width={32} height={32} style={{ borderRadius: '50%', objectFit: 'contain', background: '#F1F5F9' }} />
                         <div className="msg-bot-bubble">
                             Hello {name}! How can I help you today? I can help you check your grades, find study materials, or show your upcoming exam schedule.
                         </div>
@@ -582,14 +584,14 @@ function ChatWidget({ user }: { user: { first_name: string; username: string } }
                         </div>
                         {m.response ? (
                             <div className="msg-row-bot">
-                                <img src="/logo.svg" alt="Bot" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'contain', background: '#F1F5F9' }} />
+                                <Image src="/logo.svg" alt="Bot" width={32} height={32} style={{ borderRadius: '50%', objectFit: 'contain', background: '#F1F5F9' }} />
                                 <div className="msg-bot-bubble markdown-body">
                                     <ReactMarkdown>{m.response.response_text}</ReactMarkdown>
                                 </div>
                             </div>
                         ) : sending && (
                             <div className="msg-row-bot">
-                                <img src="/logo.svg" alt="Bot" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'contain', background: '#F1F5F9' }} />
+                                <Image src="/logo.svg" alt="Bot" width={32} height={32} style={{ borderRadius: '50%', objectFit: 'contain', background: '#F1F5F9' }} />
                                 <div className="msg-bot-bubble typing-dots"><span /><span /><span /></div>
                             </div>
                         )}

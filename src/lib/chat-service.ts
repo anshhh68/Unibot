@@ -1,10 +1,8 @@
-import { prisma } from "./prisma";
-import Groq from "groq-sdk";
-import type { Enrollment, Course, User, Assignment } from "@prisma/client";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ─── System Prompt ─────────────────────────────────────────────
-const SYSTEM_PROMPT = `You are UNIBOT, a smart AI assistant for university students.
-You help students with:
+const SYSTEM_PROMPT = `You are UNIBOT, a smart and friendly AI assistant for university students and faculty.
+You help with:
 - Course details, syllabi, and schedules
 - Assignment information and deadlines
 - Administrative procedures and campus information
@@ -12,11 +10,11 @@ You help students with:
 
 Rules:
 1. Be helpful, concise, and student-friendly.
-2. If course-specific data is provided in the context, USE it to give accurate, data-driven answers.
-3. When listing courses/assignments, format them clearly with emojis and bullet points.
-4. Always be encouraging and supportive of students' academic journeys.
-5. If the student asks about something outside the provided context, give a general helpful answer and suggest they verify with their department.
-6. Use markdown formatting (bold, bullet points) for readability.
+2. Format responses clearly with emojis and markdown (bold, bullet points).
+3. Always be encouraging and supportive of students' academic journeys.
+4. For campus-specific questions, give helpful general university guidance.
+5. When you don't have specific data, give general helpful answers.
+6. Keep responses concise but complete (under 300 words).
 `;
 
 // ─── Campus Knowledge Base ─────────────────────────────────────
@@ -127,54 +125,30 @@ const CAMPUS_INFO: Record<string, { keywords: string[]; response: string }> = {
       "💡 *Tip: Write your deadlines in the Schedule tab to keep track!*\n\n" +
       "Want me to show your upcoming assignment deadlines instead?",
   },
+  grades: {
+    keywords: ["grade", "marks", "score", "result", "gpa", "cgpa"],
+    response:
+      "📊 **Grades & Results**\n\n" +
+      "Your grades are available on the student portal:\n\n" +
+      "📋 **How to check:**\n" +
+      "1. Log in to the student portal\n" +
+      "2. Navigate to 'Academic Records' → 'Grade Card'\n" +
+      "3. Select the semester\n\n" +
+      "💡 *Results are typically published 2-3 weeks after the exam period.*\n\n" +
+      "📍 *For grade-related queries, contact the Examination Cell (Admin Block, Room 205).*",
+  },
+  schedule: {
+    keywords: ["schedule", "timetable", "when", "class time", "class timing"],
+    response:
+      "🗓️ **Schedule & Timetable**\n\n" +
+      "Your class schedule is available in the **Schedule** tab on the sidebar.\n\n" +
+      "📋 **General Class Timings:**\n" +
+      "- Morning sessions: 8:00 AM – 12:00 PM\n" +
+      "- Afternoon sessions: 1:00 PM – 5:00 PM\n" +
+      "- Lab sessions: As per your course requirements\n\n" +
+      "💡 *Check the Schedule tab for your personalized timetable!*",
+  },
 };
-
-async function buildContext(userId: number): Promise<string> {
-  const parts: string[] = [];
-
-  const enrollments = await prisma.enrollment.findMany({
-    where: { studentId: userId },
-    include: {
-      course: {
-        include: {
-          faculty: true,
-          assignments: { orderBy: { dueDate: "asc" }, take: 5 },
-        },
-      },
-    },
-  });
-
-  if (enrollments.length > 0) {
-    parts.push("=== Student's Enrolled Courses ===");
-    for (const enrollment of enrollments) {
-      const course = enrollment.course;
-      const facultyName = course.faculty
-        ? `${course.faculty.firstName} ${course.faculty.lastName}`.trim()
-        : "TBA";
-      parts.push(
-        `\n📚 ${course.code} — ${course.name}\n` +
-          `   Department: ${course.department}\n` +
-          `   Faculty: ${facultyName}\n` +
-          `   Description: ${course.description}\n` +
-          `   Syllabus: ${course.syllabus || "Not yet uploaded"}\n`
-      );
-
-      if (course.assignments.length > 0) {
-        parts.push("   Assignments:");
-        for (const a of course.assignments) {
-          const due = a.dueDate
-            ? a.dueDate.toISOString().slice(0, 16).replace("T", " ")
-            : "No due date";
-          parts.push(`   - ${a.title} (Due: ${due})`);
-        }
-      }
-    }
-  } else {
-    parts.push("The student is not currently enrolled in any courses.");
-  }
-
-  return parts.join("\n");
-}
 
 function checkCampusInfo(message: string): string | null {
   const lower = message.toLowerCase().trim();
@@ -186,218 +160,78 @@ function checkCampusInfo(message: string): string | null {
   return null;
 }
 
-async function smartFallback(message: string, userId: number, userName: string): Promise<string> {
+function getSmartFallback(message: string, userName: string): string {
   const lower = message.toLowerCase().trim();
 
-  const enrollments = await prisma.enrollment.findMany({
-    where: { studentId: userId },
-    include: {
-      course: { include: { faculty: true } },
-    },
-  });
-
-  // Greeting
   if (["hello", "hi", "hey", "good morning", "good afternoon", "good evening"].some((w) => lower.includes(w))) {
-    const assignmentCount = await prisma.assignment.count({
-      where: { course: { enrollments: { some: { studentId: userId } } } },
-    });
     return (
       `Hey ${userName}! 👋 Welcome to UNIBOT!\n\n` +
-      `Here's a quick snapshot:\n` +
-      `- 📚 You're enrolled in **${enrollments.length} course(s)**\n` +
-      `- 📝 You have **${assignmentCount} assignment(s)**\n\n` +
-      `I can help you with:\n` +
-      `- 📚 Course info & syllabi\n` +
-      `- 📝 Assignment deadlines\n` +
-      `- 🏫 Campus information (library, exams, fees, etc.)\n` +
-      `- 🗓️ Schedules & procedures\n\n` +
-      `Try asking: *"What courses am I enrolled in?"* or *"Show me upcoming deadlines"*`
+      `I'm your 24/7 university AI assistant. I can help you with:\n\n` +
+      `📚 **Academic:** Course info, syllabi, assignments\n` +
+      `🏫 **Campus:** Library, exams, fees, hostel\n` +
+      `💼 **Career:** Placements, internships\n` +
+      `📊 **Grades & Attendance**\n\n` +
+      `Try asking: *"What are the library hours?"* or *"Tell me about placements"*`
     );
   }
 
-  // Courses
-  if (["course", "enrolled", "classes", "subjects", "what am i taking", "my courses"].some((w) => lower.includes(w))) {
-    if (enrollments.length > 0) {
-      const list = enrollments
-        .map((e: Enrollment & { course: Course & { faculty: User | null } }) => {
-          const fn = e.course.faculty ? `${e.course.faculty.firstName} ${e.course.faculty.lastName}`.trim() : "TBA";
-          return `- 📚 **${e.course.code}** — ${e.course.name} (Faculty: ${fn})`;
-        })
-        .join("\n");
-      return (
-        `📚 **Your Enrolled Courses (${enrollments.length}):**\n\n` +
-        `${list}\n\n` +
-        `Would you like to see the syllabus for any course? Just ask: *"Show syllabus for [course code]"*`
-      );
-    }
-    return (
-      "📭 You don't appear to be enrolled in any courses yet.\n\n" +
-      "Please contact your department or the registrar's office for enrollment.\n" +
-      "📍 *Registrar's Office: Admin Building, Room 101*"
-    );
-  }
-
-  // Syllabus
-  if (["syllabus", "curriculum", "topics", "what is covered", "course content"].some((w) => lower.includes(w))) {
-    for (const enrollment of enrollments) {
-      if (lower.includes(enrollment.course.code.toLowerCase()) || lower.includes(enrollment.course.name.toLowerCase())) {
-        const syllabus = enrollment.course.syllabus;
-        const fn = enrollment.course.faculty ? `${enrollment.course.faculty.firstName} ${enrollment.course.faculty.lastName}`.trim() : "TBA";
-        if (syllabus && syllabus.trim()) {
-          return `📋 **Syllabus — ${enrollment.course.code}: ${enrollment.course.name}**\n\n${syllabus}\n\n👨‍🏫 Faculty: ${fn}`;
-        }
-        return `📋 **${enrollment.course.code}: ${enrollment.course.name}**\n\nThe syllabus has not been uploaded yet by the faculty.\nPlease check back later or contact your professor.`;
-      }
-    }
-    if (enrollments.length > 0) {
-      const lines = enrollments.map((e: Enrollment & { course: Course & { faculty: User | null } }) => {
-        const status = e.course.syllabus?.trim() ? "✅ Available" : "⏳ Pending";
-        return `- **${e.course.code}** — ${e.course.name} (${status})`;
-      });
-      return `📋 **Your Courses & Syllabus Status:**\n\n${lines.join("\n")}\n\nTell me a specific course code to see its full syllabus!`;
-    }
-    return "Please specify the course code or name for the syllabus you'd like to see.";
-  }
-
-  // Assignments / Deadlines
-  if (["assignment", "homework", "due", "deadline", "submit", "pending", "upcoming"].some((w) => lower.includes(w))) {
-    const assignments = await prisma.assignment.findMany({
-      where: { course: { enrollments: { some: { studentId: userId } } } },
-      include: { course: true },
-      orderBy: { dueDate: "asc" },
-      take: 10,
-    });
-    if (assignments.length > 0) {
-      const list = assignments
-        .map((a: Assignment & { course: Course }) => {
-          const due = a.dueDate
-            ? a.dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-            : "TBA";
-          return `- 📝 **${a.title}** (${a.course.code}) — Due: ${due}`;
-        })
-        .join("\n");
-      return `📝 **Your Upcoming Assignments (${assignments.length}):**\n\n${list}\n\n💡 *Tip: Start with the earliest deadline first!*`;
-    }
-    return "✅ **No pending assignments found!**\n\nYou're all caught up! Check back later for new assignments.\n💡 *Enjoy your free time, but keep reviewing your course materials!*";
-  }
-
-  // Grades
-  if (["grade", "marks", "score", "result", "gpa", "cgpa"].some((w) => lower.includes(w))) {
-    return (
-      "📊 **Grades & Results**\n\n" +
-      "Your grades are available on the student portal:\n\n" +
-      "📋 **How to check:**\n" +
-      "1. Log in to the student portal\n" +
-      '2. Navigate to \'Academic Records\' → \'Grade Card\'\n' +
-      "3. Select the semester\n\n" +
-      "💡 *Results are typically published 2-3 weeks after the exam period.*\n\n" +
-      "📍 *For grade-related queries, contact the Examination Cell (Admin Block, Room 205).*"
-    );
-  }
-
-  // Faculty
-  if (["professor", "faculty", "teacher", "instructor", "who teaches"].some((w) => lower.includes(w))) {
-    if (enrollments.length > 0) {
-      const list = enrollments
-        .map((e: Enrollment & { course: Course & { faculty: User | null } }) => {
-          const fn = e.course.faculty ? `${e.course.faculty.firstName} ${e.course.faculty.lastName}`.trim() : "TBA";
-          return `- 👨‍🏫 **${e.course.code}** — ${fn} (${e.course.name})`;
-        })
-        .join("\n");
-      return `👨‍🏫 **Your Faculty:**\n\n${list}\n\nOffice hours are typically posted on the course page.`;
-    }
-    return "You're not enrolled in any courses yet. Faculty information will be shown after enrollment.";
-  }
-
-  // Schedule
-  if (["schedule", "timetable", "when", "class time", "class timing"].some((w) => lower.includes(w))) {
-    return (
-      "🗓️ **Schedule & Timetable**\n\n" +
-      "Your class schedule is available in the **Schedule** tab on the sidebar.\n\n" +
-      "📋 **General Class Timings:**\n" +
-      "- Morning sessions: 8:00 AM – 12:00 PM\n" +
-      "- Afternoon sessions: 1:00 PM – 5:00 PM\n" +
-      "- Lab sessions: As per your course requirements\n\n" +
-      "💡 *Check the Schedule tab for your personalized timetable!*"
-    );
-  }
-
-  // Help
   if (["help", "what can you do", "features", "how to use"].some((w) => lower.includes(w))) {
     return (
       "🤖 **I'm UNIBOT — Your 24/7 University Assistant!**\n\n" +
       "Here's everything I can help with:\n\n" +
-      "📚 **Academic:**\n" +
-      "- Course information & syllabi\n" +
-      "- Assignment deadlines\n" +
-      "- Grade & result queries\n" +
-      "- Faculty information\n\n" +
-      "🏫 **Campus:**\n" +
-      "- Library hours & services\n" +
-      "- Campus map & directions\n" +
-      "- Exam information\n" +
-      "- Hostel & mess details\n" +
-      "- Fee payments & scholarships\n" +
-      "- Placement & career services\n" +
-      "- Attendance policy\n\n" +
+      "📚 **Academic:** Course info, syllabi, assignment deadlines, grade queries\n" +
+      "🏫 **Campus:** Library hours, campus map, exam info, hostel details\n" +
+      "💰 **Finance:** Fee payments, scholarships, financial aid\n" +
+      "💼 **Career:** Placements, internships, career services\n" +
+      "📊 **Academics:** Attendance policy, results\n\n" +
       "💬 **Try these queries:**\n" +
-      '- *"What courses am I enrolled in?"*\n' +
-      '- *"Show me the syllabus for CS101"*\n' +
-      '- *"When is my assignment due?"*\n' +
       '- *"What are the library hours?"*\n' +
-      '- *"Tell me about placements"*'
+      '- *"Tell me about exam rules"*\n' +
+      '- *"Placement information"*\n' +
+      '- *"Hostel mess timings"*'
     );
   }
 
-  // Thanks
   if (["thank", "thanks", "appreciate"].some((w) => lower.includes(w))) {
     return `You're welcome, ${userName}! 😊\n\nI'm always here to help. Feel free to ask me anything!\n🎓 *Have a great day at campus!*`;
   }
 
-  // Default
   return (
-    `🤔 I'm not sure I fully understood your question, ${userName}.\n\n` +
-    `Here are some things I can help with:\n\n` +
-    `📚 **Academic:** "What courses am I enrolled in?" | "Show syllabus for CS101"\n` +
-    `📝 **Assignments:** "What are my upcoming deadlines?"\n` +
-    `🏫 **Campus:** "Library hours" | "Campus map" | "Exam info"\n` +
+    `🤔 I'm not sure I fully understood that, but let me try to help!\n\n` +
+    `Here are things I can assist with:\n\n` +
+    `📚 **Academic:** "Library hours" | "Exam information"\n` +
+    `🏫 **Campus:** "Campus map" | "Hostel details" | "Mess timings"\n` +
     `💼 **Career:** "Tell me about placements" | "Internship info"\n` +
-    `📊 **Grades:** "Check my grades" | "How to see results"\n\n` +
-    `💡 *Try rephrasing your question, or type **'help'** to see all my features!*`
+    `💰 **Finance:** "Fee payment" | "Scholarship info"\n\n` +
+    `💡 *Type **'help'** to see all my features!*`
   );
 }
 
-export async function getAiResponse(userMessage: string, userId: number, userName: string): Promise<string> {
-  // Check campus info first (instant, no API)
+export async function getAiResponse(userMessage: string, userName: string): Promise<string> {
+  // 1. Check campus info first (instant, no API call needed)
   const campusAnswer = checkCampusInfo(userMessage);
   if (campusAnswer) return campusAnswer;
 
-  // Try Groq API
+  // 2. Try Gemini API
   try {
-    const apiKey = process.env.GROQ_API_KEY || "";
-    if (!apiKey || apiKey.startsWith("your-")) {
-      return smartFallback(userMessage, userId, userName);
+    const apiKey = process.env.GEMINI_API_KEY || "";
+    if (!apiKey || apiKey.startsWith("your-") || apiKey === "") {
+      return getSmartFallback(userMessage, userName);
     }
 
-    const client = new Groq({ apiKey });
-    const context = await buildContext(userId);
-    const instruction = `${SYSTEM_PROMPT}\n\nCourse Context:\n${context}`;
-
-    const chatCompletion = await client.chat.completions.create({
-      messages: [
-        { role: "system", content: instruction },
-        { role: "user", content: userMessage },
-      ],
-      model: "llama-3.3-70b-versatile",
-      temperature: 0.7,
-      max_completion_tokens: 800,
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction: SYSTEM_PROMPT,
     });
 
-    const result = chatCompletion.choices[0]?.message?.content;
-    if (result) return result.trim();
-    return smartFallback(userMessage, userId, userName);
+    const result = await model.generateContent(userMessage);
+    const text = result.response.text();
+    if (text && text.trim()) return text.trim();
+
+    return getSmartFallback(userMessage, userName);
   } catch (e) {
-    console.error("Groq API error:", e);
-    return smartFallback(userMessage, userId, userName);
+    console.error("Gemini API error:", e);
+    return getSmartFallback(userMessage, userName);
   }
 }

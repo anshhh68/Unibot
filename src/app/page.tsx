@@ -1,8 +1,8 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import Image from 'next/image';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function LandingPage() {
         borderBottom: '1px solid var(--border-light)', zIndex: 100,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/logo.svg" alt="Logo" style={{ width: 34, height: 34, borderRadius: 10, objectFit: 'contain' }} />
+          <Image src="/logo.svg" alt="Logo" width={34} height={34} style={{ borderRadius: 10, objectFit: 'contain' }} />
           <span style={{ fontFamily: "'Space Grotesk', sans-serif", fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>
             UNIBOT
           </span>
@@ -105,7 +105,7 @@ export default function LandingPage() {
               }}>What are my upcoming deadlines?</div>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
-              <img src="/logo.svg" alt="Bot" style={{ width: 30, height: 30, borderRadius: '50%', background: '#F1F5F9', objectFit: 'contain', flexShrink: 0 }} />
+              <Image src="/logo.svg" alt="Bot" width={30} height={30} style={{ borderRadius: '50%', background: '#F1F5F9', objectFit: 'contain', flexShrink: 0 }} />
               <div style={{
                 background: 'var(--bg-page)', padding: '12px 16px',
                 borderRadius: '4px 16px 16px 16px',
