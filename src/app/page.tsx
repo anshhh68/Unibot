@@ -1,14 +1,100 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { useAuth } from '@/context/AuthContext';
+
+const GOOGLE_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? '';
 
 export default function LandingPage() {
   const router = useRouter();
+  const { user, signIn, signOut } = useAuth();
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+  const heroBtnRef = useRef<HTMLDivElement>(null);
 
-  const enter = (role: 'student' | 'faculty') => {
-    localStorage.setItem('unibot_role', role);
+  /* ── Initialize GSI once the script is loaded ── */
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+
+    const initGSI = () => {
+      if (!window.google?.accounts?.id) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (response) => {
+          signIn(response.credential);
+        },
+        auto_select: false,
+        cancel_on_tap_outside: true,
+      });
+
+      // Render GSI button in navbar
+      if (googleBtnRef.current) {
+        googleBtnRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          theme: 'outline',
+          size: 'medium',
+          shape: 'pill',
+          text: 'signin_with',
+        });
+      }
+
+      // Render GSI button in hero
+      if (heroBtnRef.current) {
+        heroBtnRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(heroBtnRef.current, {
+          theme: 'filled_blue',
+          size: 'large',
+          shape: 'pill',
+          text: 'continue_with',
+          width: 260,
+        });
+      }
+    };
+
+    // Script may already be loaded or may fire onload after this effect
+    if (window.google?.accounts?.id) {
+      initGSI();
+    } else {
+      // Poll briefly for the script to load (strategy=beforeInteractive should make this fast)
+      const poll = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(poll);
+          initGSI();
+        }
+      }, 100);
+      return () => clearInterval(poll);
+    }
+  }, [signIn]);
+
+  /* ── Re-render buttons when user logs out ── */
+  useEffect(() => {
+    if (!user && window.google?.accounts?.id && GOOGLE_CLIENT_ID) {
+      if (googleBtnRef.current) {
+        googleBtnRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          theme: 'outline',
+          size: 'medium',
+          shape: 'pill',
+          text: 'signin_with',
+        });
+      }
+      if (heroBtnRef.current) {
+        heroBtnRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(heroBtnRef.current, {
+          theme: 'filled_blue',
+          size: 'large',
+          shape: 'pill',
+          text: 'continue_with',
+          width: 260,
+        });
+      }
+    }
+  }, [user]);
+
+  /* ── After sign-in go to dashboard ── */
+  const goToDashboard = () => {
+    localStorage.setItem('unibot_role', 'student');
     router.push('/dashboard');
   };
 
@@ -30,8 +116,44 @@ export default function LandingPage() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <button className="btn btn-ghost" onClick={() => enter('student')}>Sign In</button>
-          <button className="btn btn-primary btn-sm" onClick={() => enter('student')}>Get Started</button>
+          {user ? (
+            /* ── Signed-in user pill in navbar ── */
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={goToDashboard}
+                style={{ gap: 6 }}
+              >
+                🚀 Go to Dashboard
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {user.picture && (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={user.picture}
+                    alt={user.name}
+                    width={34}
+                    height={34}
+                    style={{ borderRadius: '50%', border: '2px solid var(--primary)' }}
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+                <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {user.given_name}
+                </span>
+              </div>
+              <button
+                className="btn btn-ghost"
+                onClick={signOut}
+                style={{ fontSize: '0.82rem' }}
+              >
+                Sign Out
+              </button>
+            </div>
+          ) : (
+            /* ── GSI button in navbar (unsigned) ── */
+            <div ref={googleBtnRef} id="navbar-google-btn" style={{ minWidth: 140, minHeight: 38 }} />
+          )}
         </div>
       </nav>
 
@@ -64,22 +186,43 @@ export default function LandingPage() {
         </p>
 
         {/* Primary CTAs */}
-        <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 28 }}>
-          <button className="btn btn-primary btn-lg" onClick={() => enter('student')}>🚀 Start Chatting</button>
-          <a href="#features" className="btn btn-outline btn-lg">Learn More</a>
-        </div>
-
-        {/* Demo buttons */}
-        <div>
-          <p style={{
-            fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: 10,
-            fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase',
-          }}>🔑 Try a Demo Account</p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <DemoBtn emoji="🎓" label="Student Demo" onClick={() => enter('student')} />
-            <DemoBtn emoji="👨‍🏫" label="Professor Demo" onClick={() => enter('faculty')} />
+        {user ? (
+          /* Signed-in: show dashboard CTA */
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 28 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              padding: '12px 24px', borderRadius: 9999,
+              background: 'var(--primary-50)', border: '1px solid var(--primary-100)',
+              marginBottom: 8,
+            }}>
+              {user.picture && (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={user.picture}
+                  alt={user.name}
+                  width={40}
+                  height={40}
+                  style={{ borderRadius: '50%', border: '2px solid var(--primary)' }}
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.92rem' }}>
+                  Signed in as {user.name}
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{user.email}</div>
+              </div>
+            </div>
+            <button className="btn btn-primary btn-lg" onClick={goToDashboard}>🚀 Go to Dashboard</button>
+            <button className="btn btn-outline btn-lg" onClick={signOut}>Sign Out</button>
           </div>
-        </div>
+        ) : (
+          /* Signed-out: show GSI hero button */
+          <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 28 }}>
+            <div ref={heroBtnRef} id="hero-google-btn" style={{ minWidth: 260, minHeight: 48 }} />
+            <a href="#features" className="btn btn-outline btn-lg">Learn More</a>
+          </div>
+        )}
 
         {/* Chat preview mockup */}
         <div style={{
@@ -176,7 +319,7 @@ export default function LandingPage() {
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 32 }}>
             {[
-              { n: '01', title: 'Sign Up', desc: 'Create your account and select your role.' },
+              { n: '01', title: 'Sign In with Google', desc: 'Use your Google account — no passwords, no sign-up form needed.' },
               { n: '02', title: 'Ask Anything', desc: 'Type your question in natural language.' },
               { n: '03', title: 'Get Answers', desc: 'Receive AI responses using real course data.' },
             ].map((s, i) => (
@@ -199,7 +342,16 @@ export default function LandingPage() {
         <p style={{ color: 'var(--text-secondary)', marginBottom: 32, fontSize: '1rem' }}>
           Join thousands of students who are already using <span style={{ color: 'var(--primary)', fontWeight: 700 }}>UNIBOT</span>.
         </p>
-        <button className="btn btn-primary btn-lg" onClick={() => enter('student')}>🚀 Launch UNIBOT</button>
+        {user ? (
+          <button className="btn btn-primary btn-lg" onClick={goToDashboard}>🚀 Launch UNIBOT</button>
+        ) : (
+          <div style={{ display: 'inline-block' }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: 16 }}>
+              Sign in with your Google account to continue
+            </p>
+            <div id="cta-google-btn" style={{ display: 'flex', justifyContent: 'center' }} />
+          </div>
+        )}
       </section>
 
       {/* ── Footer ── */}
@@ -216,26 +368,5 @@ export default function LandingPage() {
       </footer>
 
     </div>
-  );
-}
-
-function DemoBtn({ emoji, label, onClick }: { emoji: string; label: string; onClick: () => void }) {
-  const [hovered, setHovered] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 7, padding: '8px 18px',
-        borderRadius: 9999, border: `1.5px solid ${hovered ? 'var(--primary)' : 'var(--border)'}`,
-        background: hovered ? 'var(--primary-50)' : 'white',
-        cursor: 'pointer', fontSize: '0.86rem', fontWeight: 600,
-        color: 'var(--text-primary)', transition: 'all 0.15s',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
-      }}
-    >
-      <span>{emoji}</span> {label}
-    </button>
   );
 }

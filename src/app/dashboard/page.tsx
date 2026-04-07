@@ -9,6 +9,7 @@ import {
     updateSyllabus, getAssignments,
     getRole, setRole,
 } from '@/lib/api';
+import { useAuth } from '@/context/AuthContext';
 
 /* ── Types ──────────────────────────────────────────────────── */
 interface ChatMsg {
@@ -73,6 +74,7 @@ function formatDateOrdinal() {
    ═══════════════════════════════════════════════════════════════ */
 export default function DashboardPage() {
     const router = useRouter();
+    const { user: googleUser, signOut } = useAuth();
     const [role, setRoleState] = useState<'student' | 'faculty'>('student');
     const [mounted, setMounted] = useState(false);
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -85,10 +87,24 @@ export default function DashboardPage() {
 
     if (!mounted) return <LoadingScreen />;
 
-    const user = DEMO_USERS[role];
+    // Build display user — prefer real Google user, fall back to demo
+    const demoUser = DEMO_USERS[role];
+    const user = demoUser;
     const isStudent = role === 'student';
-    const displayName = user.first_name;
-    const initials = `${user.first_name[0]}${user.last_name[0]}`;
+
+    // Real Google user data (overrides demo display in topbar)
+    const displayName = googleUser?.given_name || demoUser.first_name;
+    const displayFullName = googleUser?.name || `${demoUser.first_name} ${demoUser.last_name}`;
+    const displayEmail = googleUser?.email || demoUser.username;
+    const googlePicture = googleUser?.picture || null;
+    const initials = googleUser
+        ? `${googleUser.given_name?.[0] ?? ''}${googleUser.family_name?.[0] ?? ''}`.toUpperCase()
+        : `${demoUser.first_name[0]}${demoUser.last_name[0]}`;
+
+    const handleSignOut = () => {
+        signOut();
+        router.push('/');
+    };
 
     const switchRole = () => {
         const next = role === 'student' ? 'faculty' : 'student';
@@ -194,12 +210,40 @@ export default function DashboardPage() {
                         </div>
                         <div className="topbar-user">
                             <div className="topbar-user-info">
-                                <div className="topbar-user-name">{user.first_name} {user.last_name}</div>
+                                <div className="topbar-user-name">{displayFullName}</div>
                                 <div className="topbar-user-role">
-                                    {isStudent ? `ID: ${user.username}` : user.department || 'Department Head'}
+                                    {isStudent ? displayEmail : user.department || 'Department Head'}
                                 </div>
                             </div>
-                            <div className="avatar avatar-green">{initials}</div>
+                            {googlePicture ? (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img
+                                    src={googlePicture}
+                                    alt={displayFullName}
+                                    width={36}
+                                    height={36}
+                                    style={{ borderRadius: '50%', border: '2px solid var(--primary)', cursor: 'pointer' }}
+                                    referrerPolicy="no-referrer"
+                                    title={`Signed in as ${displayFullName}`}
+                                />
+                            ) : (
+                                <div className="avatar avatar-green">{initials}</div>
+                            )}
+                            {googleUser && (
+                                <button
+                                    onClick={handleSignOut}
+                                    style={{
+                                        padding: '5px 12px', borderRadius: 9999,
+                                        border: '1.5px solid var(--border)',
+                                        background: 'white', cursor: 'pointer',
+                                        fontSize: '0.75rem', fontWeight: 700,
+                                        color: 'var(--text-secondary)',
+                                    }}
+                                    title="Sign out"
+                                >
+                                    Sign Out
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -207,8 +251,8 @@ export default function DashboardPage() {
                 <div className="page-content">
                     {activeTab === 'dashboard' && (
                         isStudent
-                            ? <StudentDashboard user={user} displayName={displayName} />
-                            : <FacultyDashboard user={user} displayName={displayName} />
+                            ? <StudentDashboard user={{ ...user, first_name: displayName }} displayName={displayName} />
+                            : <FacultyDashboard user={{ ...user, first_name: displayName }} displayName={displayName} />
                     )}
                     {activeTab === 'courses' && <CoursesFullPanel user={user} />}
                     {activeTab === 'schedule' && <SchedulePanel />}
